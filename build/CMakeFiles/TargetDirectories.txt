@@ -1,0 +1,4 @@
+/home/jetson/final_yolo_cpp_last/build/CMakeFiles/rebuild_cache.dir
+/home/jetson/final_yolo_cpp_last/build/CMakeFiles/GarbageClassifier.dir
+/home/jetson/final_yolo_cpp_last/build/CMakeFiles/edit_cache.dir
+/home/jetson/final_yolo_cpp_last/build/CMakeFiles/GarbageClassifier_autogen.dir
