@@ -97,14 +97,43 @@ void Detector::run()
         // 图像预处理：归一化、缩放、通道变换
         cv::Mat blob;
         try {
+            /**
+             * 参数解释：
+             * frame: 原始图像，类型为 cv::Mat。
+             * blob: 输出参数，生成的4维张量（NCHW：batch, channels, height, width）。
+             * 1 / 255.0: 缩放因子，把像素值从 [0, 255] 缩放到 [0, 1]（神经网络更易处理）。
+             * cv::Size(INPUT_SIZE, INPUT_SIZE): 目标尺寸，例如 YOLOv5 通常用 640x640，表示将图像缩放到指定大小。
+             * cv::Scalar(): 均值减除值（均值归一化用的），为空则不做减均值操作。
+             * true: swapRB，表示是否交换 R 和 B 通道。因为 OpenCV 默认是 BGR，很多模型需要 RGB，因此这里设为 true。
+             * false: crop，是否在缩放图像时裁剪，设为 false 表示不裁剪，只缩放。
+             * 
+             */
             cv::dnn::blobFromImage(frame, blob, 1 / 255.0, cv::Size(INPUT_SIZE, INPUT_SIZE), cv::Scalar(), true, false);
+            //将预处理后的图像张量 blob 作为输入喂给神经网络 net_。
             net_.setInput(blob);
         } catch (cv::Exception& e) {
             qDebug() << "[Detector] blobFromImage/setInput error:" << e.what();
             continue;
         }
 
-        // 前向推理
+        // 前向推理，获取模型输出
+        /**
+         * net_.forward(outputs, net_.getUnconnectedOutLayersNames());
+         * 
+         * 作用：
+         *   - 执行神经网络的前向传播（推理），将输入数据传递给网络，得到输出结果。
+         *   - outputs: 用于存放网络的输出张量。
+         *   - net_.getUnconnectedOutLayersNames(): 获取所有未连接输出层的名称（即模型的最终输出层），
+         *     这样可以确保输出的是模型的最终推理结果（如YOLO的检测结果）。
+         * 相关函数：
+         *   - cv::dnn::Net::forward(std::vector<cv::Mat>& outputBlobs, const std::vector<std::string>& outBlobNames):
+         *       - outputBlobs: 用于接收输出层的结果（可以有多个输出）。
+         *       - outBlobNames: 指定要获取的输出层名称列表。
+         *   - cv::dnn::Net::getUnconnectedOutLayersNames():
+         *       - 返回所有未连接输出层（即最终输出层）的名称列表，常用于检测模型（如YOLO、SSD等）。
+         * 
+         *   该行代码将模型的推理输出存储到outputs中，供后续解析检测结果使用。
+         */
         std::vector<cv::Mat> outputs;
         try {
             net_.forward(outputs, net_.getUnconnectedOutLayersNames());
@@ -123,13 +152,13 @@ void Detector::run()
         // 解析输出张量
         cv::Mat& out = outputs[0];
         int numProposals = out.size[1]; // 检测框数量
-        int dims = out.size[2];         // 每个检测框的属性数
+        int dims = out.size[2]; // 每个检测框的属性数
         float* data = (float*)out.data; // 指向输出数据
 
-        std::vector<cv::Rect> boxes;         // 检测框
-        std::vector<float> confs;            // 置信度
-        std::vector<std::string> labels;     // 类别标签
-        int validCount = 0;                  // 有效检测数
+        std::vector<cv::Rect> boxes; // 检测框
+        std::vector<float> confs; // 置信度
+        std::vector<std::string> labels; // 类别标签
+        int validCount = 0; // 有效检测数
 
         // 遍历所有检测框
         for (int i = 0; i < numProposals; ++i) {
